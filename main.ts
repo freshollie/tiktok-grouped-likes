@@ -37,8 +37,8 @@ const loginCookies = [
   }
 ];
 
-type BotData = { username: string, log: debug.Debugger };
-const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, username } }) => {
+type BotData = { username: string, log: debug.Debugger, lastLiked?: string };
+const doLikes: TaskFunction<BotData, string | undefined> = async ({ page, data: { log, username, lastLiked } }) => {
   log(`starting work`);
 
   await page.setRequestInterception(true);
@@ -84,6 +84,11 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
   }
 
   for (let i = 0; i < 2; i++) {
+
+    if (lastLiked && await page.$(`.video-feed-item-wrapper[href='${lastLiked}']`)) {
+      break;
+    }
+    
     // scroll to bottom, wait for next page to load
     await page.evaluate(() => document.querySelector(".video-feed-item:last-child")?.scrollIntoView());
 
@@ -95,18 +100,34 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
   }
 
   log(`starting likes`);
-  const lastVideo = await page.waitFor(".video-feed-item:last-child .video-feed-item-wrapper");
-  await lastVideo.click();
+  if (lastLiked) {
+    log(`starting from last liked video: ${lastLiked}`)
+  };
+
+  let startVideo = await page.$(lastLiked ? 
+    `.video-feed-item-wrapper[href='${lastLiked}']` : 
+    ".video-feed-item:last-child .video-feed-item-wrapper"
+  )
+
+  if (!startVideo) {
+    startVideo = await page.waitFor(".video-feed-item:last-child .video-feed-item-wrapper")
+  }
+
+  await startVideo.click();
 
   let likedVideos = 0;
   let checkedVideos = 0;
+  let lastVideo: string;
 
   while (true) {
+    lastVideo = page.url().split("?")[0];
+    log(`checking ${lastVideo}`)
     checkedVideos += 1;
     const likebutton = await page.waitFor(".icons.like");
 
     let shouldLike = await page.$(".icons.like:not(.liked")
     if (shouldLike) {
+      log(`liking ${lastVideo}`)
       await likebutton.click();
       likedVideos += 1;
     }
@@ -127,6 +148,7 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
   }
 
   log(`Checked ${checkedVideos} videos, added ${likedVideos} to likes`)
+  return lastVideo;
 }
 
 
@@ -145,12 +167,13 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
   console.log("STARTING BOT")
   console.log(`Grouping ${usernames} likes`)
 
-  const cluster: Cluster<BotData, void> = await Cluster.launch({
+  const cluster: Cluster<BotData, string | undefined> = await Cluster.launch({
     concurrency: Cluster.CONCURRENCY_CONTEXT,
-    maxConcurrency: 4,
-    timeout: 5 * 60 * 1000,
+    maxConcurrency: Number(process.env.CONCURRENCY) || 3,
+    timeout: 10 * 60 * 1000,
     puppeteerOptions: {
       headless: true,
+      executablePath: '',
       args: [
         // Required for Docker version of Puppeteer
         '--no-sandbox',
@@ -165,14 +188,16 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
   cluster.task(doLikes);
   await Promise.all(usernames.map(async (user) => {
     const log = debug(`like-bot:${user}`);
+    let lastLiked: string | undefined;
     while (true) {
       try {
-        await cluster.execute({ username: user, log });
+        lastLiked = await cluster.execute({ username: user, log, lastLiked });
       } catch (e) {
         log(`something went wrong during likes`, e);
       }
-      log('sleeping for 5 minutes');
-      await new Promise(resolve => setTimeout(resolve, 60 * 5 * 1000))
+      const sleep = Math.round(30 * 1000 + Math.random() * 60 * 1000);
+      log(`sleeping for ${sleep}ms`);
+      await new Promise(resolve => setTimeout(resolve, sleep))
     }
   }));
 

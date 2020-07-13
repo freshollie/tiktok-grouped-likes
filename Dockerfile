@@ -16,7 +16,10 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 
 WORKDIR /likesbot
 
-COPY . .
+COPY package.json yarn.lock ./
+RUN yarn
+
+COPY *.ts tsconfig.json ./
 
 RUN yarn
 CMD [ "yarn", "start" ]

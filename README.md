@@ -6,6 +6,8 @@ Group viewing tiktok on a TV is fun, but tiktok doesn't let you group liked vide
 
 This program automatically likes the tiktok videos of the provided users, so that your group's liked videos all end up on a single account.
 
+It was written pretty quickly, and not really something I care too much about. No tests, no linting yet. 
+
 ## Usage
 
 Requirements: `node v12+`
