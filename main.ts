@@ -20,7 +20,6 @@ const loginCookies = [
     value: SESSIONID,
     domain: '.tiktok.com',
     path: '/',
-    expires: 1599821086.500474,
     size: 41,
     httpOnly: true,
     secure: false,
@@ -31,7 +30,6 @@ const loginCookies = [
     value: SESSIONID,
     domain: '.tiktok.com',
     path: '/',
-    expires: 1599821086.500519,
     size: 44,
     httpOnly: true,
     secure: true,
@@ -66,7 +64,7 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
     'hasTouch': Math.random() > 0.5
   } as any);
 
-  log(`(${username}): loading tiktok`);
+  log(`loading tiktok`);
   await page.goto(`https://www.tiktok.com/@${username}?lang=en`, {
     'waitUntil': "domcontentloaded"
   });
@@ -76,7 +74,7 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
   // go to likes
   await Promise.race([page.waitFor(".error-page"), page.waitFor(".video-feed-item-wrapper")])
 
-  log(`(${username}): loading liked videos`);
+  log(`loading liked videos`);
   const likes = await page.waitFor(".like")
   await likes.click();
 
@@ -87,10 +85,12 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
 
   for (let i = 0; i < 2; i++) {
     // scroll to bottom, wait for next page to load
-    await page.evaluate(() => document.querySelector(".video-feed-item:last-child")?.scrollIntoView())
+    await page.evaluate(() => document.querySelector(".video-feed-item:last-child")?.scrollIntoView());
 
     if (await page.waitFor(".tiktok-loading.feed-loading", { timeout: 1000 }).then(() => true).catch(() => false)) {
-      await page.waitFor(() => !document.querySelector(".tiktok-loading.feed-loading"))
+      await page.waitFor(() => !document.querySelector(".tiktok-loading.feed-loading"));
+    } else {
+      break;
     }
   }
 
