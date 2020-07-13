@@ -150,7 +150,15 @@ const doLikes: TaskFunction<BotData, void> = async ({ page, data: { log, usernam
     maxConcurrency: 4,
     timeout: 5 * 60 * 1000,
     puppeteerOptions: {
-      headless: true
+      headless: true,
+      args: [
+        // Required for Docker version of Puppeteer
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        // This will write shared memory files into /tmp instead of /dev/shm,
+        // because Docker’s default for /dev/shm is 64MB
+        '--disable-dev-shm-usage'
+      ]
     }
   });
 

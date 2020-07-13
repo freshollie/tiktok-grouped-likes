@@ -1,6 +1,7 @@
 {
   "name": "tiktok-grouped-likes",
   "version": "1.0.0",
+  "license": "MIT",
   "scripts": {
     "start": "ts-node main.ts",
     "authenticate": "ts-node login.ts"
